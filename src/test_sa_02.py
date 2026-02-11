@@ -31,6 +31,8 @@ class User(BaseORM):
 
 	id: Mapped[intpk]
 	name: Mapped[str_100]
+	rel_msgs_sent: Mapped[List["Message"]] = relationship("Message", back_populates="sender", foreign_keys="[Message.sender]", lazy="selectin")
+	rel_msgs_recv: Mapped[List["Message"]] = relationship("Message", back_populates="reciever", foreign_keys="[Message.reciever]", lazy="selectin")
 	# rel_posts: Mapped[List["Post"]] = relationship(back_populates="rel_author")
 	# rel_channels: Mapped[List["Channel"]] = relationship(back_populates="rel_subs")
 
@@ -48,8 +50,8 @@ class Post(BaseORM):
 	id: Mapped[intpk]
 	title: Mapped[str_100]
 	text: Mapped[str]
-	# author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-	# channel_id: Mapped[int] = mapped_column(ForeignKey("channels.id"))
+	author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+	channel_id: Mapped[int] = mapped_column(ForeignKey("channels.id"))
 
 	# rel_author: Mapped["User"] = relationship(back_populates="rel_posts", foreign_keys=[author_id])
 	# rel_channel: Mapped["User"] = relationship(back_populates="rel_posts", foreign_keys=[channel_id])
@@ -99,8 +101,10 @@ class pd_PostPost(pd_Base):
 class pd_UserOut(pd_UserPost):
 	id: int
 
-class pd_MessageOut(pd_MessagePost):
+class pd_MessageOut():
 	id: int
+	income: bool
+	text: str
 
 class pd_PostOut(pd_PostPost):
 	author: pd_UserPost          # вложенный автор (без author_id!)
@@ -127,6 +131,7 @@ def get_db_dep():
 		yield db
 	finally:
 		db.close()
+get_injector = Annotated[Session, Depends(get_db_dep)]
 
 # router = APIRouter()
 app = FastAPI()
@@ -146,6 +151,39 @@ def new_user(new_user: pd_UserPost, db: Session = Depends(get_db_dep)):
 def get_user(db: Session = Depends(get_db_dep)):
 	res = db.query(User).all()
 	return [i for i in res]
+
+@app.delete("/users/{uid}")
+def rasstrel(uid: int, db: get_injector):
+	u = db.query(User).filter(User.id == uid).delete()
+	db.commit()
+	return {"del"}
+
+'''
+@app.get("/messages/{sender_id}/{reciever_id}", response_model=List[pd_MessageOut])
+def opn_dialog(sender_id: int, reciever_id: int, db: get_injector):
+	sender = db.query(User).filter(User.id == sender_id).first()
+	if not sender:
+		raise HTTPException(404, "Этот гад не на парковке")
+	
+	reciever = db.query(User).filter(User.id == reciever_id).first()
+	if not reciever:
+		raise HTTPException(404, "Мысли пока не читаем. А жаль")
+	
+	msgs = db.query(Message).filter((Message.sender == sender_id) & (Message.reciever == reciever_id)).all()
+	return [i for i in msgs]
+# '''
+
+@app.get("/messages/{sender_id}/{reciever_id}", response_model=List[pd_MessageOut])
+def opn_dialog(sender_id: int, reciever_id: int, db: get_injector):
+	sender = db.query(User).filter(User.id == sender_id).first()
+	if not sender:
+		raise HTTPException(404, "Этот гад не на парковке")
+	
+	reciever = db.query(User).filter(User.id == reciever_id).first()
+	if not reciever:
+		raise HTTPException(404, "Мысли пока не читаем. А жаль")
+	
+	
 
 @app.post("/messages/send")
 def send_msg(messag_new: pd_MessagePost, db: Annotated[Session, Depends(get_db_dep)]):
