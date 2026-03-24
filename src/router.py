@@ -2,9 +2,13 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 # from schemas import pd_MessagePost, pd_MessageOut, pd_UserPost, pd_UserOut
-from schemas import *
-from models import *
-from db import *
+from users.schemas import *
+from messages.schemas import *
+from channels.schemas import *
+from users.models import *
+from messages.models import *
+from channels.models import *
+from config.db_helper import *
 import application
 
 from typing import Annotated
