@@ -1,103 +1,106 @@
 from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy.orm import Session
+# from sqlalchemy.orm import Session
 
-# from schemas import pd_MessagePost, pd_MessageOut, pd_UserPost, pd_UserOut
-from users.schemas import *
-from messages.schemas import *
-from channels.schemas import *
-from users.models import *
-from messages.models import *
-from channels.models import *
-from config.db_helper import *
-import application
+# from schemas import pd_MessagePost, pd_MessageOut, PdPostOut, pd_UserOut
+from models import List, BaseORM
+from users.schemas import PdUserPost, PdUserOut
+from messages.schemas import PdMessagePost, PdMessageOut
+from channels.schemas import PdChannelPost, PdChannelOut, PdPostPost, PdPostOut
+from users.models import User
+from messages.models import Message
+# from channels.models import Post, Channel, Chunk
+from config.db_helper import get_db, AsyncSession
+from sqlalchemy import select, delete, insert, update, and_, or_
+from exceptions import ExcUserExists, ExcUserNotFound
 
+# from sqlalchemy.orm import RelationshipProperty
+# for m in BaseORM.registry.mappers:
+# 	for prop in m.all_orm_descriptors:
+# 		if isinstance(prop, RelationshipProperty):
+# 			print (f"rel-modl: {m.class_.__name__} | prop: {prop}, prop key: {prop.key}, targ {prop.argument}")
+# 		else:
+# 			print (f"modl: {m.class_.__name__} | prop: {prop}, prop key: {prop.key}")
+BaseORM.registry.configure()
+
+# import application
 from typing import Annotated
 
-get_injector = Annotated[Session, Depends(mksess)] # А ето видимо опять в роутыр.пу
+get_injector = Annotated[AsyncSession, Depends(get_db)] # А ето видимо опять в роутыр.пу
 
 # router = APIRouter()
-app = FastAPI()
-# app = application.get_app()
+router = FastAPI()
 
-@app.post("/users/add")
-def new_user(new_user: pd_UserPost, db: get_injector):
-	print(new_user, new_user.model_dump())
-	print(User.__mapper__.columns.keys())
+@router.post("/users/add")
+async def new_user(new_user: PdPostOut, db: get_injector):
 	u = User(**new_user.model_dump())
 	db.add(u)
-	db.commit()
-	db.refresh(u)
-	return {"got": pd_UserOut(**u.__dict__)}
-	# return {"got": pd_UserOut(u)}
+	await db.commit()
+	await db.refresh(u)
+	return {"got": PdUserOut(**u.__dict__)}
 
-@app.get("/users", response_model=List[pd_UserOut])
-def get_user(db: get_injector):
-	res = db.query(User).all()
-	return [i for i in res]
+@router.get("/users", response_model=List[PdUserOut])
+async def get_user(db: get_injector):
+	res = await db.execute(select(User))
+	return res
 
-@app.delete("/users/{uid}")
-def rasstrel(uid: int, db: get_injector):
-	u = db.query(User).filter(User.id == uid).delete()
-	db.commit()
+@router.delete("/users/{uid}")
+async def rasstrel(uid: int, db: get_injector):
+	u = await db.execute(select(User).filter(User.id == uid))
+	u = u.scalar_one_or_none()
+	u_ret = PdUserOut(u)
+	await db.delete(u)
+	await db.commit()
 	return {"del"}
 
-'''
-@app.get("/messages/{sender_id}/{reciever_id}", response_model=List[pd_MessageOut])
-def opn_dialog(sender_id: int, reciever_id: int, db: get_injector):
-	sender = db.query(User).filter(User.id == sender_id).first()
-	if not sender:
-		raise HTTPException(404, "Этот гад не на парковке")
+@router.get("/messages/{sender_id}/{receiver_id}", response_model=List[PdMessageOut])
+async def opn_dialog(sender_id: int, receiver_id: int, db: get_injector):
+	sender = await db.execute(select(User).filter(User.id == sender_id))
+	if not sender.first():
+		raise ExcUserNotFound(f"No sender: {sender_id}")
 	
-	reciever = db.query(User).filter(User.id == reciever_id).first()
-	if not reciever:
-		raise HTTPException(404, "Мысли пока не читаем. А жаль")
+	receiver = await db.execute(select(User).filter(User.id == receiver_id))
+	if not receiver.first():
+		raise ExcUserNotFound(f"No receiver: {receiver_id}")
 	
-	msgs = db.query(Message).filter((Message.sender == sender_id) & (Message.reciever == reciever_id)).all()
-	return [i for i in msgs]
-# '''
+	msgs = await db.execute(select(Message).filter(and_(Message.sender == sender_id, Message.receiver == receiver_id)))
+	
+	m_list = msgs.scalars().all()
+	print([PdMessageOut(**i.__dict__)	for i in  m_list])
+	# return [PdMessageOut(**i.__dict__) for i in m_list]
+	return m_list
 
-@app.get("/messages/{sender_id}/{reciever_id}", response_model=List[pd_MessageOut])
-def opn_dialog(sender_id: int, reciever_id: int, db: get_injector):
-	sender = db.query(User).filter(User.id == sender_id).first()
+@router.post("/messages/send")
+async def send_msg(messag_new: PdMessagePost, db: get_injector):
+	sender = await db.execute(select(User).filter(User.id == messag_new.sender))
+	sender = sender.first()
 	if not sender:
-		raise HTTPException(404, "Этот гад не на парковке")
+		raise ExcUserNotFound
 	
-	reciever = db.query(User).filter(User.id == reciever_id).first()
+	reciever = await db.execute(select(User).filter(User.id == messag_new.sender)).first()
 	if not reciever:
-		raise HTTPException(404, "Мысли пока не читаем. А жаль")
-	
-	
-
-@app.post("/messages/send")
-def send_msg(messag_new: pd_MessagePost, db: get_injector):
-	sender = db.query(User).filter(User.id == messag_new.sender).first()
-	if not sender:
-		raise HTTPException(404, "Ты никто")
-	
-	reciever = db.query(User).filter(User.id == messag_new.sender).first()
-	if not reciever:
-		raise HTTPException(404, "Ты не путин чтобы звонить на выключенный")
+		raise ExcUserNotFound
 	
 	m = Message(**messag_new.model_dump())
 	db.add(m)
-	db.commit()
-	db.refresh(m)
-	return {"sent": pd_MessageOut(**m.__dict__)}
-
-@app.get("/posts", response_model=pd_PostOut)
-def get_posts(db: get_injector):
-	posts = db.query(Post).all()
+	await db.commit()
+	await db.refresh(m)
+	return {"sent": PdMessageOut(**m.__dict__)}
+"""
+@router.get("/posts", response_model=PdPostOut)
+async def get_posts(db: get_injector):
+	posts = await db.execute(select(Post)).all()
 	if not posts:
 		raise HTTPException(404, "Чота с постами")
 	return posts
 
-@app.get("/posts/{post_id}", response_model=pd_PostOut)
-def get_post(post_id: int, db: get_injector):
-	post = db.query(Post).filter(Post.id == post_id).first()
+@router.get("/posts/{post_id}", response_model=PdPostOut)
+async def get_post(post_id: int, db: get_injector):
+	post = await db.execute(select(Post).filter(Post.id == post_id)).first()
 	if not post:
 		raise HTTPException(404, "Пост не найден")
-	return pd_PostOut.model_validate()
+	return PdPostOut.model_validate()
 
-@app.post("/posts/post")
-def new_post():
+@router.post("/posts/post")
+async def new_post():
 	pass
+# """

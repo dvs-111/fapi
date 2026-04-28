@@ -1,7 +1,8 @@
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+# from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+# from sqlalchemy.orm import Session
 
 from config.db_config import Settings
 
@@ -9,23 +10,26 @@ from typing import Annotated
 
 settings = Settings()
 
-engine = create_engine(str(settings.postgres_url))
+engine = create_async_engine(str(settings.postgres_url))
 # sa_engine = create_engine(
 # 	"postgresql+psycopg://postgres:123456@localhost:5432/postgres",
 # 	echo=True,
 # )
 # sess_mkr = sessionmaker(sa_engine)
 
-@contextmanager
-async def mksess() -> Session:
-	session: Session = Session(engine)
+@asynccontextmanager
+async def get_session():
+	session: AsyncSession = AsyncSession(engine)
 	try:
 		yield session
-		session.commit()
+		await session.commit()
 	except Exception:
-		session.rollback()
+		await session.rollback()
 		raise
 	finally:
-		session.close()
+		await session.close()
 
+async def get_db() -> AsyncSession:
+	async with get_session() as sess:
+		yield sess
 # get_injector = Annotated[Session, Depends(mksess)]

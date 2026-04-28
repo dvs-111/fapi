@@ -1,8 +1,7 @@
-from src.schemas import *
+from schemas import PdBase
 
-
-class pd_UserPost(pd_Base):
+class PdUserPost(PdBase):
 	name: str
 
-class pd_UserOut(pd_UserPost):
+class PdUserOut(PdUserPost):
 	id: int

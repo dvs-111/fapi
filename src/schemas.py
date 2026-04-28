@@ -1,8 +1,7 @@
-
-from pydantic import BaseModel as pd_BaseModel, ConfigDict
+from pydantic import BaseModel as PdBaseModel, ConfigDict
 from typing import List
 
-class pd_Base(pd_BaseModel):
+class PdBase(PdBaseModel):
 	model_config = ConfigDict(from_attributes=True)
 
 # class pd_UserOut(pd_UserPost):

@@ -1,11 +1,11 @@
-from src.schemas import *
+from schemas import PdBase
 
-class pd_MessagePost(pd_Base):
+class PdMessagePost(PdBase):
 	sender: int
-	reciever: int
+	receiver: int
 	text: str
 
-class pd_MessageOut(pd_Base):
+class PdMessageOut(PdMessagePost):
 	id: int
-	income: bool
-	text: str
+	# income: bool
+	# text: str
