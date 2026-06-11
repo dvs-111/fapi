@@ -1,4 +1,4 @@
-print("init src-models")
+# print("init src-models")
 from sqlalchemy import Table, Column, Integer, String, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 from typing import Annotated, List

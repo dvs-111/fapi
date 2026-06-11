@@ -41,6 +41,7 @@ async def new_user(new_user: PdPostOut, db: get_injector):
 @router.get("/users", response_model=List[PdUserOut])
 async def get_user(db: get_injector):
 	res = await db.execute(select(User))
+	res = res.scalars().all()
 	return res
 
 @router.delete("/users/{uid}")
