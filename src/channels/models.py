@@ -21,6 +21,7 @@ class Channel(BaseORM):
 	__tablename__ = "channels"
 
 	id: Mapped[intpk]
+	owner: Mapped[int] = mapped_column(ForeignKey("users.id"))
 	name: Mapped[str]
 
 	rel_subs: Mapped[list["User"]] = relationship(
@@ -33,6 +34,7 @@ class Channel(BaseORM):
 		"Post",
 		back_populates="rel_channel",
 		cascade="all, delete-orphan",
+		single_parent=True,
 		lazy="selectin",
 	)
 	rel_chunk: Mapped["Chunk"] = relationship(
@@ -52,7 +54,7 @@ class Chunk(BaseORM):
 		"Channel",
 		secondary="channel_chunk_association",
 		back_populates="rel_chunk",
-		cascade="all, delete-orphan",
+		# cascade="all, delete-orphan",
 		lazy="selectin",
 	)
 
