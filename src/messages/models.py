@@ -1,4 +1,3 @@
-print("init msg-models")
 from typing import TYPE_CHECKING
 from models import BaseORM, Mapped, mapped_column, ForeignKey, intpk, relationship
 if TYPE_CHECKING:

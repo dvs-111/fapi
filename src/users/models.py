@@ -1,4 +1,3 @@
-print("init users-models")
 from typing import TYPE_CHECKING
 from models import BaseORM, Mapped, mapped_column, List, intpk, str_100, relationship
 if TYPE_CHECKING:
