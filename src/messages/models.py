@@ -17,9 +17,7 @@ class Message(BaseORM):
 		"User",
 		# argument=lambda: User,
 		back_populates="rel_msgs_sent",
-		# back_populates=lambda: User.rel_msgs_recv,
 		foreign_keys=[sender],
-		# foreign_keys=["Message.sender"],
 		lazy="selectin"
 		# lazy="joined"
 	)
@@ -29,9 +27,7 @@ class Message(BaseORM):
 		"User",
 		# argument=lambda: User,
 		back_populates="rel_msgs_recv",
-		# back_populates=lambda: User.rel_msgs_recv,
 		foreign_keys=[receiver],
-		# foreign_keys=["Message.receiver"],
 		lazy="selectin"
 	)
 # """

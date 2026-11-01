@@ -54,7 +54,6 @@ class Chunk(BaseORM):
 		"Channel",
 		secondary="channel_chunk_association",
 		back_populates="rel_chunk",
-		# cascade="all, delete-orphan",
 		lazy="selectin",
 	)
 

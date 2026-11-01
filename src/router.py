@@ -5,10 +5,10 @@ from fastapi import FastAPI, Depends, HTTPException
 from models import List, BaseORM
 from users.schemas import PdUserPost, PdUserOut
 from messages.schemas import PdMessagePost, PdMessageOut
-from channels.schemas import PdChannelPost, PdChannelOut, PdPostPost, PdPostOut
+from channels.schemas import PdChannelPost, PdChannelOut, PdPostPost, PdPostOut, PdChunkPost, PdChunkOut
 from users.models import User
 from messages.models import Message
-# from channels.models import Post, Channel, Chunk
+from channels.models import Post, Channel, Chunk
 from config.db_helper import get_db, AsyncSession
 from sqlalchemy import select, delete, insert, update, and_, or_
 from exceptions import ExcUserExists, ExcUserNotFound
@@ -21,6 +21,11 @@ from exceptions import ExcUserExists, ExcUserNotFound
 # 		else:
 # 			print (f"modl: {m.class_.__name__} | prop: {prop}, prop key: {prop.key}")
 BaseORM.registry.configure()
+
+"""
+from sqlalchemy.engine import create_engine as sa_eng_syn
+BaseORM.metadata.create_all(sa_eng_syn("postgresql+psycopg://postgres:123456@localhost:5432/postgres"))
+# """
 
 # import application
 from typing import Annotated
@@ -77,7 +82,8 @@ async def send_msg(messag_new: PdMessagePost, db: get_injector):
 	if not sender:
 		raise ExcUserNotFound
 	
-	reciever = await db.execute(select(User).filter(User.id == messag_new.sender)).first()
+	reciever = await db.execute(select(User).filter(User.id == messag_new.sender))
+	reciever = reciever.first()
 	if not reciever:
 		raise ExcUserNotFound
 	
@@ -86,22 +92,35 @@ async def send_msg(messag_new: PdMessagePost, db: get_injector):
 	await db.commit()
 	await db.refresh(m)
 	return {"sent": PdMessageOut(**m.__dict__)}
-"""
-@router.get("/posts", response_model=PdPostOut)
-async def get_posts(db: get_injector):
-	posts = await db.execute(select(Post)).all()
+# """
+@router.get("/posts/{channel_id}", response_model=List[PdPostOut])
+async def get_posts(channel_id: int, db: get_injector):
+	posts = await db.execute(select(Post).filter(Post.channel == channel_id))
+	posts = posts.scalars().partitions(10)
 	if not posts:
 		raise HTTPException(404, "Чота с постами")
 	return posts
 
 @router.get("/posts/{post_id}", response_model=PdPostOut)
 async def get_post(post_id: int, db: get_injector):
-	post = await db.execute(select(Post).filter(Post.id == post_id)).first()
+	post = await db.execute(select(Post).filter(Post.id == post_id))
+	post = post.first()
 	if not post:
 		raise HTTPException(404, "Пост не найден")
+	
 	return PdPostOut.model_validate()
 
-@router.post("/posts/post")
-async def new_post():
-	pass
+@router.post("/posts/{channel_id}/post")
+async def new_post(channel_id: int, post_new: PdPostPost, db: get_injector):
+	chn = await db.execute(select(Channel).filter(Channel.id == channel_id))
+	chn = chn.first()
+	if not chn:
+		raise HTTPException(404, "Не в ту ды...")
+	
+	p = Post(**post_new.model_dump(), channel=channel_id)
+	db.add(p)
+	await db.commit()
+	await db.refresh(p)
+
+	return {"posted": PdPostOut(**p.__dict__)}
 # """
