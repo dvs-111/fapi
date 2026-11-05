@@ -5,12 +5,18 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from src.models.users import Base
+from models import BaseORM as Base
+from users.models import User
+from messages.models import Message
+from channels.models import Channel, Chunk, Post
+
+from config.db_config import Settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
+config.set_main_option("sqlalchemy.url", f"{Settings().postgres_url}?async_fallback=True")
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:

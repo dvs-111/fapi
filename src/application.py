@@ -25,6 +25,6 @@ def get_app() -> FastAPI:
 		allow_methods=['*'],
 		allow_headers=['*'],
 	)
-	app.include_router(router=router) # сюда присрать метод из healthcheck router
+	app.include_router(router=router.router) # сюда присрать метод из healthcheck router
 
 	return app
